@@ -1,0 +1,26 @@
+name: 🚀 Deploy AI Proxy
+on: [push, workflow_dispatch]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: 📦 Setup Wrangler
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        
+    - name: 🔧 Create KV Namespace
+      id: kv
+      run: |
+        KV_ID=$(wrangler kv:namespace create KV --preview-compatibility-flag=kv_namespace_preview_20230801 | grep id | awk '{print $3}')
+        echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
+        echo "KV_ID=$KV_ID" >> $GITHUB_ENV
+        
+    - name: 📝 Update wrangler.toml
+      run: |
+        sed -i "s/id = \"\"/id = \"${{ steps.kv.outputs.kv_id }}\"/g" wrangler.toml
+        
+    - name: 🚀 Deploy
+      run: wrangler deploy --outdir=dist
